@@ -5,6 +5,7 @@ class MouseCrashedError(Exception):
 
 def command(args, return_type=None):
     line = " ".join([str(x) for x in args]) + "\n"
+    sys.stderr.write("COMMAND: {}".format(line))
     sys.stdout.write(line)
     sys.stdout.flush()
     if return_type:
