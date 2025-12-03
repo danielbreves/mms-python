@@ -126,25 +126,28 @@ class Robot:
         self.position = self.position.get_move(self.direction)
 
     def turn_to_position(self, next_position: Position):
-        if (
-            next_position == Position(0, 0)
-            or next_position == NextCellOffset[self.direction]
-        ):
+        """Turn to face an adjacent cell given its absolute position."""
+        offset = Position(
+            next_position.x - self.position.x, next_position.y - self.position.y
+        )
+
+        if offset == Position(0, 0) or offset == NextCellOffset[self.direction]:
             return
 
-        if next_position not in NextCellOffset.values():
-            raise ValueError("Invalid next position offset")
+        if offset not in NextCellOffset.values():
+            raise ValueError("Invalid target position - must be adjacent")
 
-        if next_position == NextCellOffset[Direction.get_left(self.direction)]:
+        if offset == NextCellOffset[Direction.get_left(self.direction)]:
             self.turn_left()
-        elif next_position == NextCellOffset[Direction.get_right(self.direction)]:
+        elif offset == NextCellOffset[Direction.get_right(self.direction)]:
             self.turn_right()
         else:
             self.turn_right()
             self.turn_right()
 
     def move_to_position(self, next_position: Position):
-        if next_position == Position(0, 0):
+        """Move to an adjacent cell given its absolute position."""
+        if next_position == self.position:
             return
 
         self.turn_to_position(next_position)
@@ -172,8 +175,8 @@ def is_goal(pos: Position, width: int, height: int) -> bool:
     return pos.x in (center_x - 1, center_x) and pos.y in (center_y - 1, center_y)
 
 
-def find_unvisited_neighbor(robot: Robot, maze: Maze) -> Direction | None:
-    """Find an unvisited neighboring cell and turn toward it."""
+def find_unvisited_neighbor(robot: Robot, maze: Maze) -> Position | None:
+    """Find an unvisited neighboring cell."""
     next_direction = robot.direction
     current_cell = maze.get_cell(robot.position)
 
@@ -184,7 +187,7 @@ def find_unvisited_neighbor(robot: Robot, maze: Maze) -> Direction | None:
                 maze.is_valid_position(adjacent_pos)
                 and not maze.get_cell(adjacent_pos).visited
             ):
-                return next_direction
+                return adjacent_pos
         next_direction = Direction.get_left(next_direction)
 
     return None
@@ -204,11 +207,8 @@ def backtrack(robot: Robot, path: list[Position]) -> bool:
         return False
 
     previous_pos = path.pop()
-    next_position = Position(
-        previous_pos.x - robot.position.x, previous_pos.y - robot.position.y
-    )
-    API.clearColor(robot.position.x, robot.position.y)
-    robot.move_to_position(next_position)
+    API.setColor(robot.position.x, robot.position.y, "B")
+    robot.move_to_position(previous_pos)
     return True
 
 
@@ -232,10 +232,9 @@ def explore_maze(robot: Robot, maze: Maze) -> list[Position]:
 
         robot.scan_walls(maze)
 
-        unvisited_dir = find_unvisited_neighbor(robot, maze)
-        if unvisited_dir:
-            offset = NextCellOffset[unvisited_dir]
-            robot.turn_to_position(offset)
+        unvisited_pos = find_unvisited_neighbor(robot, maze)
+        if unvisited_pos:
+            robot.turn_to_position(unvisited_pos)
 
         while robot.has_wall_front():
             maze.set_wall(robot.position, robot.direction, True)
@@ -258,10 +257,7 @@ def return_to_start(robot: Robot, path: list[Position]) -> None:
 
     while backtrack_path:
         previous_pos = backtrack_path.pop()
-        next_position = Position(
-            previous_pos.x - robot.position.x, previous_pos.y - robot.position.y
-        )
-        robot.move_to_position(next_position)
+        robot.move_to_position(previous_pos)
 
 
 def run_fastest_path(robot: Robot, path: list[Position]) -> None:
@@ -269,10 +265,7 @@ def run_fastest_path(robot: Robot, path: list[Position]) -> None:
     log(f"Running fastest path: {path}")
 
     for next_pos in path:
-        next_position = Position(
-            next_pos.x - robot.position.x, next_pos.y - robot.position.y
-        )
-        robot.move_to_position(next_position)
+        robot.move_to_position(next_pos)
 
 
 def main():
