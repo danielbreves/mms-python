@@ -189,12 +189,6 @@ def log(message: str) -> None:
     sys.stderr.flush()
 
 
-def is_goal(pos: Position, width: int, height: int) -> bool:
-    """Check if position is in the center 2x2 goal area."""
-    center_x, center_y = width // 2, height // 2
-    return pos.x in (center_x - 1, center_x) and pos.y in (center_y - 1, center_y)
-
-
 class MazeSolver(ABC):
     """Abstract base class for maze solving algorithms."""
 
@@ -207,6 +201,12 @@ class MazeSolver(ABC):
     def solve(self) -> list[Position]:
         """Explore the maze and return the path to the goal."""
         ...
+
+    def is_goal(self, pos: Position) -> bool:
+        """Check if position is in the center 2x2 goal area."""
+        center_x = self.maze.width // 2
+        center_y = self.maze.height // 2
+        return pos.x in (center_x - 1, center_x) and pos.y in (center_y - 1, center_y)
 
     def return_to_start(self, path: list[Position]) -> None:
         """Navigate back to the starting position."""
@@ -230,7 +230,7 @@ class DFSSolver(MazeSolver):
         path: list[Position] = []
 
         while True:
-            if self._is_goal():
+            if self.is_goal(self.robot.position):
                 self._mark_goal_reached(path)
                 return path
 
@@ -253,10 +253,6 @@ class DFSSolver(MazeSolver):
             else:
                 if not self._backtrack(path):
                     return []
-
-    def _is_goal(self) -> bool:
-        """Check if robot is at the goal."""
-        return is_goal(self.robot.position, self.maze.width, self.maze.height)
 
     def _find_unvisited_neighbor(self) -> Position | None:
         """Find an unvisited neighboring cell."""
