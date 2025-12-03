@@ -132,6 +132,9 @@ class Robot:
         ):
             return
 
+        if next_position not in NextCellOffset.values():
+            raise ValueError("Invalid next position offset")
+
         if next_position == NextCellOffset[Direction.get_left(self.direction)]:
             self.turn_left()
         elif next_position == NextCellOffset[Direction.get_right(self.direction)]:
