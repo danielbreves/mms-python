@@ -30,21 +30,24 @@ class Direction(enum.Enum):
     SOUTH = 2
     WEST = 3
 
-    @staticmethod
-    def get_left(direction: "Direction") -> "Direction":
-        return Direction((direction.value - 1) % 4)
+    def left(self) -> "Direction":
+        return Direction((self.value - 1) % 4)
+
+    def right(self) -> "Direction":
+        return Direction((self.value + 1) % 4)
+
+    def to_str(self) -> str:
+        return self.name[0].lower()
+
+    def opposite(self) -> "Direction":
+        return Direction((self.value + 2) % 4)
+
+    def offset(self) -> "Position":
+        return DIRECTION_OFFSETS[self]
 
     @staticmethod
-    def get_right(direction: "Direction") -> "Direction":
-        return Direction((direction.value + 1) % 4)
-
-    @staticmethod
-    def to_str(direction: "Direction") -> str:
-        return direction.name[0].lower()
-
-    @staticmethod
-    def get_opposite(direction: "Direction") -> "Direction":
-        return Direction((direction.value + 2) % 4)
+    def is_valid_offset(offset: "Position") -> bool:
+        return offset in DIRECTION_OFFSETS.values()
 
 
 class Position(NamedTuple):
@@ -52,11 +55,11 @@ class Position(NamedTuple):
     y: int
 
     def get_move(self, direction: Direction) -> "Position":
-        offset = NextCellOffset[direction]
+        offset = direction.offset()
         return Position(self.x + offset.x, self.y + offset.y)
 
 
-NextCellOffset: dict[Direction, Position] = {
+DIRECTION_OFFSETS: dict[Direction, Position] = {
     Direction.NORTH: Position(0, 1),
     Direction.EAST: Position(1, 0),
     Direction.SOUTH: Position(0, -1),
@@ -105,13 +108,13 @@ class Maze:
     def set_wall(self, pos: Position, direction: Direction, has_wall: bool):
         """Set wall in maze and update the simulator display."""
         if has_wall:
-            self.api.setWall(pos.x, pos.y, Direction.to_str(direction))
+            self.api.setWall(pos.x, pos.y, direction.to_str())
         self._set_cell_wall(pos, direction, has_wall)
 
         # Set wall in adjacent cell too
         adjacent_pos = pos.get_move(direction)
         if self.is_valid_position(adjacent_pos):
-            opposite = Direction.get_opposite(direction)
+            opposite = direction.opposite()
             self._set_cell_wall(adjacent_pos, opposite, has_wall)
 
 
@@ -133,12 +136,12 @@ class Robot:
     def turn_left(self):
         self.api.turnLeft()
         log("left")
-        self.direction = Direction.get_left(self.direction)
+        self.direction = self.direction.left()
 
     def turn_right(self):
         self.api.turnRight()
         log("right")
-        self.direction = Direction.get_right(self.direction)
+        self.direction = self.direction.right()
 
     def move_forward(self):
         self.api.moveForward()
@@ -151,15 +154,15 @@ class Robot:
             next_position.x - self.position.x, next_position.y - self.position.y
         )
 
-        if offset == Position(0, 0) or offset == NextCellOffset[self.direction]:
+        if offset == Position(0, 0) or offset == self.direction.offset():
             return
 
-        if offset not in NextCellOffset.values():
+        if not Direction.is_valid_offset(offset):
             raise ValueError("Invalid target position - must be adjacent")
 
-        if offset == NextCellOffset[Direction.get_left(self.direction)]:
+        if offset == self.direction.left().offset():
             self.turn_left()
-        elif offset == NextCellOffset[Direction.get_right(self.direction)]:
+        elif offset == self.direction.right().offset():
             self.turn_right()
         else:
             self.turn_right()
@@ -176,12 +179,8 @@ class Robot:
     def scan_walls(self, maze: "Maze"):
         """Scan and record walls in all visible directions."""
         maze.set_wall(self.position, self.direction, self.has_wall_front())
-        maze.set_wall(
-            self.position, Direction.get_left(self.direction), self.has_wall_left()
-        )
-        maze.set_wall(
-            self.position, Direction.get_right(self.direction), self.has_wall_right()
-        )
+        maze.set_wall(self.position, self.direction.left(), self.has_wall_left())
+        maze.set_wall(self.position, self.direction.right(), self.has_wall_right())
 
 
 def log(message: str) -> None:
@@ -267,7 +266,7 @@ class DFSSolver(MazeSolver):
                     and not self.maze.get_cell(adjacent_pos).visited
                 ):
                     return adjacent_pos
-            next_direction = Direction.get_left(next_direction)
+            next_direction = next_direction.left()
 
         return None
 
